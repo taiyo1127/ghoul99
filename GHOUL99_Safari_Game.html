@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>GHOUL 99</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:#050509;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+body{display:flex;justify-content:center}
+#app{width:100%;max-width:540px;min-height:100vh;padding:8px;background:radial-gradient(circle at 50% 10%,#351018 0,#09090d 48%,#030305 100%)}
+.machine{border:2px solid #651622;border-radius:22px;padding:7px;background:linear-gradient(#181920,#08080b);box-shadow:0 0 35px #000,inset 0 0 30px #000}
+.header{height:48px;border-radius:13px;background:linear-gradient(90deg,#08080a,#58131c,#08080a);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;letter-spacing:6px;text-shadow:0 0 16px #f33}
+.lamps{display:flex;justify-content:space-around;padding:7px 10px}.lamp{width:9px;height:9px;border-radius:50%;background:#28090d}.lamp.on{background:#ff364b;box-shadow:0 0 13px #ff364b}
+.info{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:7px}.box{background:#181920;border:1px solid #33252a;border-radius:8px;text-align:center;padding:5px;color:#999;font-size:10px}.v{display:block;color:#ff6271;font-size:17px;font-weight:900}
+.screen{height:480px;position:relative;overflow:hidden;border:4px solid #27282e;border-radius:17px;background:radial-gradient(circle at 50% 42%,#47121d 0,#180b10 28%,#050508 70%);box-shadow:inset 0 0 55px #000}
+.screen:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px)}
+.stage{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:1}
+.mode{font-size:11px;letter-spacing:2px;color:#aaa}.title{font-size:43px;font-weight:1000;letter-spacing:8px;text-shadow:0 0 10px #f33,0 0 28px #8c1724;margin:10px 0}
+.msg{height:25px;color:#ff9ba5;font-weight:800}
+.reels{display:flex;gap:8px;margin:18px 0}.reel{width:79px;height:91px;border:2px solid #743943;border-radius:11px;background:linear-gradient(#30313a,#111218);display:grid;place-items:center;font-size:49px;font-weight:1000;box-shadow:inset 0 0 20px #000}.reel.hot{border-color:#ff394d;box-shadow:0 0 22px #e22,inset 0 0 20px #000}
+.cutin{position:absolute;inset:0;z-index:4;display:none;align-items:center;justify-content:center;background:#000c}.cutin b{font-size:48px;color:#fff;text-shadow:0 0 10px #f00,0 0 35px #f00;transform:skew(-8deg)}
+.dropbar{position:absolute;z-index:5;left:4%;right:4%;top:-40px;height:38px;background:#fff;display:none;box-shadow:0 0 30px 8px #fff}
+.controls{margin-top:7px;display:grid;grid-template-columns:1fr 1fr;gap:7px}.controls button{min-height:54px;border:0;border-radius:10px;color:#fff;font-size:14px;font-weight:900;background:linear-gradient(#424550,#20222a);box-shadow:inset 0 1px #777}.controls .main{background:linear-gradient(#bd3040,#6e121e);box-shadow:0 0 14px #511019}.controls button:disabled{opacity:.35}
+.options{display:flex;justify-content:space-between;font-size:12px;padding:9px 3px 3px}.history{margin-top:7px;max-height:100px;overflow:auto;font-size:12px}.history div{padding:5px;border-bottom:1px solid #28282e}.note{margin-top:7px;padding:8px;color:#999;font-size:10px;line-height:1.5;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"><div class="machine">
+<div class="header">GHOUL 99</div><div id="lamps" class="lamps"></div>
+<div class="info">
+<div class="box">MODE<span id="mode" class="v">通常</span></div>
+<div class="box">玉<span id="balls" class="v">250</span></div>
+<div class="box">回転<span id="spins" class="v">0</span></div>
+<div class="box">RUSH<span id="rush" class="v">--</span></div>
+</div>
+<div class="screen">
+<div class="stage"><div id="modeText" class="mode">NORMAL 1/99</div><div id="title" class="title">GHOUL</div><div id="msg" class="msg">STARTで変動</div>
+<div class="reels"><div id="r1" class="reel">1</div><div id="r2" class="reel">2</div><div id="r3" class="reel">3</div></div></div>
+<div id="cutin" class="cutin"><b id="cutinText">BONUS</b></div><div id="dropbar" class="dropbar"></div>
+</div>
+<div class="controls"><button id="spin" class="main">START / 変動</button><button id="rushBtn" disabled>RUSH消化</button><button id="auto">AUTO OFF</button><button id="reset">リセット</button></div>
+<div class="options"><label>手落ちカスタム　<input id="drop" type="checkbox"></label><label>サウンド　<input id="sound" type="checkbox" checked></label></div>
+<div class="history" id="history">まだありません</div>
+<div class="note">公式実機の画像・ロゴ・演出・音源を使用しないオリジナルゲームです。</div>
+</div></div>
+<script>
+(()=> {
+const $=id=>document.getElementById(id);
+let balls=250,spins=0,mode="normal",rush=0,busy=false,auto=false,audio=null;
+for(let i=0;i<12;i++){const x=document.createElement("i");x.className="lamp";$("lamps").appendChild(x)}
+function beep(f=440,d=.08,t="sine",v=.035){
+ if(!$("sound").checked)return;
+ try{
+  if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();
+  if(audio.state==="suspended")audio.resume();
+  const o=audio.createOscillator(),g=audio.createGain();
+  o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(audio.destination);
+  o.start();g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+d);o.stop(audio.currentTime+d)
+ }catch(e){}
+}
+const wait=n=>new Promise(r=>setTimeout(r,n));
+function update(){
+ $("balls").textContent=balls;$("spins").textContent=spins;$("mode").textContent=mode==="rush"?"RUSH":"通常";
+ $("rush").textContent=mode==="rush"?rush:"--";$("modeText").textContent=mode==="rush"?"RUSH MODE":"NORMAL 1/99";
+ $("spin").disabled=busy||mode==="rush";$("rushBtn").disabled=busy||mode!=="rush";$("auto").textContent="AUTO "+(auto?"ON":"OFF")
+}
+function addHistory(t){const h=$("history");if(h.textContent==="まだありません")h.textContent="";h.innerHTML="<div>"+t+"</div>"+h.innerHTML}
+async function handDrop(){
+ if(!$("drop").checked)return;
+ const b=$("dropbar");b.style.display="block";
+ b.animate([{top:"-40px"},{top:"105%"}],{duration:320,easing:"ease-in"});
+ beep(75,.2,"sawtooth",.07);await wait(330);b.style.display="none"
+}
+async function spin(isRush=false){
+ if(busy)return;busy=true;update();spins++;
+ if(!isRush&&balls<1){$("msg").textContent="玉がありません";busy=false;update();return}
+ if(!isRush)balls--;
+ update();$("msg").textContent=isRush?"RUSH高速変動…":"変動中…";
+ const win=Math.random()<(isRush?.18:1/99),hot=win||Math.random()<.13;
+ if(hot){$("title").textContent="兆候";$("title").style.color="#ff4557";document.querySelectorAll(".reel").forEach(x=>x.classList.add("hot"));beep(180,.12,"square")}
+ await wait(isRush?220:580);
+ if(hot)await handDrop();
+ const nums=win?[7,7,7]:[1+Math.floor(Math.random()*9),1+Math.floor(Math.random()*9),1+Math.floor(Math.random()*9)];
+ for(let i=0;i<3;i++){["r1","r2","r3"].forEach((id,j)=>{if(i===j)$(id).textContent=nums[i]});await wait(isRush?90:170)}
+ if(win){
+  $("cutinText").textContent=isRush?"RUSH HIT!":"BONUS";$("cutin").style.display="flex";
+  beep(820,.12,"square",.06);beep(1050,.18);balls+=isRush?120:600;
+  if(isRush){rush=Math.min(80,rush+20);addHistory("RUSH当たり +20回");$("msg").textContent="大当たり！"}
+  else{mode="rush";rush=80;addHistory("初当たり → RUSH突入");$("msg").textContent="RUSH突入！"}
+  setTimeout(()=>{$("cutin").style.display="none"},520)
+ }else{
+  $("msg").textContent="ハズレ";
+  if(isRush){rush--;if(rush<=0){mode="normal";addHistory("RUSH終了");$("msg").textContent="RUSH終了"}}
+ }
+ $("title").textContent="GHOUL";$("title").style.color="";
+ document.querySelectorAll(".reel").forEach(x=>x.classList.remove("hot"));busy=false;update();
+ if(auto&&mode==="normal")setTimeout(()=>spin(false),650)
+}
+$("spin").addEventListener("click",()=>spin(false));
+$("rushBtn").addEventListener("click",()=>spin(true));
+$("auto").addEventListener("click",()=>{auto=!auto;update();if(auto&&mode==="normal"&&!busy)spin(false)});
+$("reset").addEventListener("click",()=>{balls=250;spins=0;mode="normal";rush=0;auto=false;$("history").textContent="まだありません";$("msg").textContent="STARTで変動";update()});
+update();
+})();
+</script>
+</body>
+</html>
